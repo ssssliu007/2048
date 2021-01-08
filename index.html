@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>ssssliu007.home</title>
@@ -20,43 +21,10 @@
     </div>
   </div>
 </body>
-<script src="./js/2048.js"></script>
+<script src="./js/2048 v2.js"></script>
 <script>
-  const game = new Game2048('#box')
-  // dev.$onchange = (e)=>{
-  //   console.log(e)
-  // }
-  game.done.then(()=>{
-    Object.values(document.querySelectorAll('.is-init')).forEach((dm)=>{
-      dm.classList.remove('is-init')
-    })
-  })
-  let reBack = document.querySelector('#re-back')
-  let reNew = document.querySelector('#re-new')
-  let reBox = document.querySelector('#btn-box')
-  reBack.addEventListener('click', game.moveBackworld)
-  reNew.addEventListener('click', ()=>{
-    if(confirm('重新开始？')){
-      game.reNew()
-    }
-  })
-  game.subscribe(game._global, 'max_lv', 'max', (newValue, tDom) => {
-    let cList = tDom.classList,
-    lastLv = Array.from(cList).find(i=>/^lv_/.test(i))
-    cList.remove(lastLv)
-    cList.add('lv_' + newValue)
-  }, reBox)
-  game.subscribe(game._global, 'his_len', 'historyLength', (newValue, tDom) => {
-    let text = tDom.innerText;
-    let textValue = newValue;
-    textValue -= 1;
-    if(newValue <= 1){
-      tDom.classList.add('hide')
-    }else{
-      tDom.innerText = text.replace(/\(\d+\)/, `(${textValue})`)
-      tDom.classList.remove('hide')
-    }
-  }, reBack)
+  // document.body.appendChild(D('li.fwocv.fweo.wei#feo2.do2', 'dfkljie'))
+  
 </script>
 
 </html>

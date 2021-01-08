@@ -1,0 +1,14 @@
+{
+  "name": "local-run",
+  "version": "1.0.0",
+  "description": "run locally",
+  "main": "main.js",
+  "scripts": {
+    "dev": "./node_modules/.bin/live-server --port=8001"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "live-server": "^1.2.1"
+  }
+}
