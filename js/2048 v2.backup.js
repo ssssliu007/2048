@@ -144,11 +144,25 @@
       this.proxy = [
         ['isOnError', this.container, 'class', v => v ? 'is-on-error' : ''],
       ].reduce((cell, bindParams) => new BindDom(cell, ...bindParams), this)
+      // this.init([
+      //   [1, 2, 1],
+      //   [0, 2, 1],
+      //   [3, 2, 2],
+      //   // [2, 0, 1],
+      //   // [2, 1, 1],
+      //   // [3, 0, 2],
+      //   // [3, 1, 2],
+      //   // [3, 2, 3],
+      //   // [3, 3, 4],
+      // ])
       this.initControler();
+      // setTimeout(() => {
+      //   this.move(4)
+      //   // .move(4)
+      // }, 200);
       this.initBtn()
       setTimeout(() => {
         this.init()
-        this.move(1).move(2)
         document.querySelector('.is-not-ready').classList.remove('is-not-ready')
       }, 100);
       return this
@@ -189,6 +203,7 @@
           let [x, y] = c.coor;
           table[y][x] = c && c.level || '';
         })
+        // console.log(this.cellMap.value);// 打印需要
         consoleTabel(table)
       },
       list: (isRise = true) => Array.from(this.cellMap.value.filter(i => i.level !== 0)).sort((a, b) => {
@@ -202,13 +217,28 @@
     history = {
       value: [],
       set: (directionFlag) => {
-        this.history.value.unshift(this.history.calc(directionFlag));
+        // console.log(list)
+        // let listMap = Array.from(list).map(c => {
+        //   let { isNew, levelUp } = c.historyStatus;
+        //   let status;
+        //   if (isNew) {
+        //     status = 1;
+        //   } else if (levelUp) {
+        //     status = 2;
+        //   } else {
+        //     status = 0;
+        //   }
+        //   let [x, y] = c.coor
+        //   return [x, y, c.level, status]
+        // });
+        // listMap.unshift(directionFlag);
+        this.history.value.unshift( this.history.get(directionFlag) );
         if (this.history.value[this.DEFAULT_CONFIG.historyLength + 1]) {
           this.history.value.pop()
         }
-        this.history.refresh();
+        console.log('history', this.history.value)
       },
-      calc: (directionFlag, list = this.cellMap.value) => {
+      get: (directionFlag, list = this.cellMap.value) => {
         let listMap = Array.from(list).map(c => {
           let { isNew, levelUp } = c.historyStatus;
           let status;
@@ -221,73 +251,43 @@
           }
           let [x, y] = c.coor
           return [x, y, c.level, status]
-        }).sort(([x1, y1], [x2, y2]) => {
-          return y1 === y2 ? x1 - x2 : y1 - y2
+        }).sort(([x1, y1], [x2, y2])=>{
+          return y1 === y2 ? x1 - x2 :  y1 - y2
         });
         listMap.unshift(directionFlag);
         return listMap
-      },
-      init: ()=>{
-        let history = window.localStorage.getItem('history');
-        if(history){
-          try {
-            history = JSON.parse(history);
-          } catch (error) {
-            return
-          }
-        }
-        if(history && history[1]){
-          return history
-        }else{
-          return undefined
-        }
-      },
-      reset: ()=>{
-        this.proxy.history.value = [];
-        window.localStorage.removeItem('history');
-      },
-      refresh: ()=>{
-        window.localStorage.setItem('history', JSON.stringify(this.history.value))
       }
     }
+    initBtn(unmakeEl = '#unmake', remakeEl = '#remake') {
+      let uBtn = document.querySelector(unmakeEl)
+      uBtn && uBtn.addEventListener('click', ()=>{
+        this.unmake()
+      })
+      this.history.value = new BindDom(this.history.value, 'length', uBtn, 'class', (v)=>v < 2 ? 'hide' : 'show');
+      this.history.value = new BindDom(this.history.value, 'length', uBtn, 'innerHTML', (v)=>`Re.Back(${v-1})`);
+      let mBtn = document.querySelector(remakeEl)
+      mBtn && mBtn.addEventListener('click', ()=>{
+        this.remake()
+      })
+      this.proxy = new BindDom(this.proxy, 'maxLevel', mBtn, 'class', (v)=>`lv_${v}`)
+    }
     init(prop) {
-      let count, getCoor, hasHistory = false;
-      let history = this.history.init();
-      this.cellMap.value.forEach(i=>i.remove(true));
-      this.cellMap.value = [];
+      let count, isArray, getCoor;
       if (prop instanceof Array) {
+        isArray = true;
         count = prop.length;
         getCoor = (index) => prop[index];
-      } else if(prop === undefined && history){
-        hasHistory = true;
-        let mapData = history[0].filter((i,iNo)=>iNo>0)
-          .map(([x,y,l])=>[x,y,l]);
-        count = mapData.length;
-        getCoor = (i) => mapData[i];
-        this.history.value.splice(0, this.history.value.length, ...history)
       } else {
+        isArray = false;
         count = prop || this.DEFAULT_CONFIG.initCellCount;
-        getCoor = () => this.randomEmtyCoor()
+        getCoor = () => this.randomEmtyCoor(1)
       }
       for (let k = 0; k < count; k++) {
         new Cell(getCoor(k), this)
       }
       this.cellMap.log()
-      !hasHistory && this.history.set(0)
+      this.history.set(0)
       return this
-    }
-    initBtn(unmakeEl = '#unmake', remakeEl = '#remake') {
-      let uBtn = document.querySelector(unmakeEl)
-      uBtn && uBtn.addEventListener('click', () => {
-        this.unmake()
-      })
-      this.history.value = new BindDom(this.history.value, 'length', uBtn, 'class', (v) => v < 2 ? 'hide' : 'show');
-      this.history.value = new BindDom(this.history.value, 'length', uBtn, 'innerHTML', (v) => `Re.Back(${v - 1})`);
-      let mBtn = document.querySelector(remakeEl)
-      mBtn && mBtn.addEventListener('click', () => {
-        this.remake()
-      })
-      this.proxy = new BindDom(this.proxy, 'maxLevel', mBtn, 'class', (v) => `lv_${v}`)
     }
     initControler() {
       let el = this.container;
@@ -397,7 +397,7 @@
       return [x, y]
     }
     move(direction, moveStatus, lastMovement) {
-      if (lastMovement instanceof Array) {
+      if(lastMovement instanceof Array){
         lastMovement = JSON.parse(JSON.stringify(lastMovement));
       }
       if (this.animate[0]) {
@@ -405,12 +405,15 @@
       }
       this.animate.push(() => {
         direction = this.DIRECTION[direction] || direction;
+        console.log('%cmoveStart', 'color: #ff6600;')
         let allMovementPromse = []
         if (!direction) {
           return console.warn('移动至少有个方向吧')
         }
         // 右、下 移动需要倒序遍历 默认是正序
         let isRise, list;
+        // 移动完成（和计算进行中时的list）
+        let doneMap = [];
         let nextStep;
         let transformStrArr = [];
         switch (direction) {
@@ -436,8 +439,8 @@
             break;
         }
         list = this.cellMap.list(isRise);
-        if (moveStatus) {
-          moveStatus.map(([x, y, level, status]) => {
+        if(moveStatus){
+          moveStatus.map(([x, y, level, status])=>{
             let trgCell = this.cellMap.get(x, y);
             trgCell.isOnDivide = status === 2;
             trgCell.isOnDestroy = status === 1;
@@ -452,18 +455,18 @@
             let moveableCoorParams = [];
             while (moved < this.DEFAULT_CONFIG.mapSize + 1) {
               moved++
-              if (cell.isOnDestroy) {
+              if(cell.isOnDestroy){
                 cell.animate.push(['DESTROY', true])
                 break
               }
               let nextCoor = nextStep(coor);
               let isOutOfRange = nextCoor.findIndex(v => v >= this.DEFAULT_CONFIG.mapSize || v < 0) !== -1;
-              if (lastMovement) {
-                let movementIndex = lastMovement.findIndex(([xl, yl]) => xl === coor[0] && yl === coor[1]);
-                if (movementIndex !== -1) {
+              if(lastMovement){
+                let movementIndex = lastMovement.findIndex(([xl, yl])=>xl === coor[0] && yl === coor[1]);
+                if(movementIndex !== -1){
                   moveableCoorParams.push([movementIndex, moved]);
                 }
-              } else {
+              }else{
                 if (isOutOfRange) {
                   if (moved > 1) {
                     cell.nextCoor = coor;
@@ -474,7 +477,7 @@
                 let cellUnder = this.cellMap.get(...nextCoor, true);
                 if (cellUnder) {
                   if (cellUnder.level === cell.level && !cellUnder.isOnMerge) {
-                    if (cellUnder.animate.length === cell.animate.length) {
+                    if(cellUnder.animate.length === cell.animate.length){
                       cellUnder.animate.push(['DELAY'])
                     }
                     cellUnder.animate.push(['LEVEL_UP']);
@@ -485,7 +488,7 @@
                   } else {
                     if (moved > 1) {
                       cell.nextCoor = coor;
-                      cell.animate.push(['MOVE_TO', coor, transformStrArr.map(i => i(moved - 1))]);
+                      cell.animate.push(['MOVE_TO', coor, transformStrArr.map(i => i(moved - 1) )]);
                     }
                   }
                   break
@@ -495,15 +498,23 @@
             }
 
             if (moveableCoorParams.length) {
+              console.log("🚀 ~ file: 2048 v2.js ~ line 480 ~ Game2048 ~ this.animate.push ~ moveableCoorParams.length", moveableCoorParams.length)
+              console.log(JSON.parse(JSON.stringify(lastMovement)))
               let spliceIndexFix = 0;
               let showLog = []
-              if (cell.isOnDivide) {
+              if(cell.isOnDivide){
                 let [movementIndex, moved0] = moveableCoorParams.pop();
                 let [movementCoor] = lastMovement.splice(movementIndex, 1);
                 movementCoor.length = 2;
-                cell.animate.push(['DIVIDE', ['MOVE_TO', movementCoor, transformStrArr.map(i => i(moved0 - 1))]]);
-                if (movementIndex < moveableCoorParams[0][0]) {
-                  spliceIndexFix = -1;
+                cell.animate.push(['DIVIDE', ['MOVE_TO', movementCoor, transformStrArr.map(i => i(moved0-1) )]]);
+                try {
+                  if(movementIndex < moveableCoorParams[0][0]){
+                    spliceIndexFix = -1;
+                  }
+                } catch (error) {
+                  debugger
+                  console.error(error)
+                  console.log(moveableCoorParams)
                 }
                 showLog.push(movementCoor)
               }
@@ -511,14 +522,16 @@
               let [movementCoor] = lastMovement.splice(movementIndex + spliceIndexFix, 1);
               movementCoor.length = 2;
               cell.nextCoor = movementCoor;
-              cell.animate.push(['MOVE_TO', movementCoor, transformStrArr.map(i => i(moved0 - 1))])
+              cell.animate.push(['MOVE_TO', movementCoor, transformStrArr.map(i => i(moved0-1) )])
               showLog.push(movementCoor)
+              console.log("🚀 ~ file: 2048 v2.js ~ line 594 ~ Game2048 ~ this.animate.push ~ showLog", showLog)
             }
 
             if (!isMoved && cell.animate[0]) {
               isMoved = true
             }
           })
+          // console.log(list.length, this.cellMap.value.length)
           allMovementPromse = list.map(c => {
             c.dom;
             return c.play()
@@ -527,18 +540,19 @@
         if (!isMoved) {
           clearTimeout(this.isOnError)
           this.proxy.isOnError = setTimeout(() => {
+            console.log("🚀 ~", this, this.isOnError)
             this.proxy.isOnError = false
           }, 300);
           return Promise.resolve()
         } else {
           return Promise.all(allMovementPromse).then(() => {
-            if (!lastMovement) {
+            if(!lastMovement){
               // 随机生成新个体
               let re_direction = this.RE_DIRECTION[this.DIRECTION.indexOf(direction)];
+              
               this.DEFAULT_CONFIG.autoAdd && new Cell(this.randomEmtyCoor(re_direction), this);
+
               this.history.set(this.DIRECTION.indexOf(direction), this.cellMap.value)
-            }else{
-              this.history.refresh();
             }
             this.cellMap.log()
           })
@@ -547,11 +561,11 @@
       return this
     }
     finishNow() {
-      return Promise.all(this.cellMap.value.map(i => i.doneNow()))
+      return Promise.all(this.cellMap.list().map(i => i.doneNow()))
     }
     unmake() {
       let lastMap = this.history.value[1];
-      if (lastMap) {
+      if(lastMap){
         let params = JSON.parse(JSON.stringify(this.history.value[0]));
         if (params && params.length) {
           let [direction, ...propsArr] = params;
@@ -571,22 +585,25 @@
             default:
               break;
           }
-          let lastMapCoor = lastMap.filter((i, iNo) => iNo > 0)
+          let lastMapCoor = lastMap.filter((i,iNo)=>iNo>0)
           this.move(direction, propsArr, lastMapCoor)
           this.history.value.shift()
         }
       }
     }
-    remake(isAsk = true) {
-      let isOk = false;
-      if(isAsk){
-        isOk = confirm('一二三四，再来一次？')
-      }else{
-        isOk = true
-      }
-      this.history.reset();
-      this.init()
-    }
+    // Publisher = class{
+    //   constructor(target, key, fn){
+    //     return new Proxy(target, {
+    //       set(t, k, v){
+    //         if(key === k){
+    //           fn(v, k, t)
+    //         }
+    //         return Reflect.set(t, k, v)
+    //       }
+    //     })
+    //   }
+    // }
+    // Subscriber
   }
   class Cell {
     constructor([x, y, level, isNotNew] = [], parent) {
@@ -602,6 +619,7 @@
         ['level', dom, 'class', v => `lv_${v}`],
         ['isNew', dom, 'class', v => v ? 'is-new' : ''],
         ['levelUp', dom, 'class', v => v ? 'is-level-up' : ''],
+        // ['isOnDestroy', dom, 'class', v=>v ? 'is-on-destroy':''],
         ['animateStyle', styleDom, 'style', v => v && v[0] && `transform: ${v.join(' ')}` || ''],
       ].reduce((cell, bindParams) => new BindDom(cell, ...bindParams), this)
       cell = new Proxy(cell, {
@@ -640,13 +658,12 @@
     };
     _id = 0;
     level = 0;
-    dom = null;
+    coor = [];
+    animate = [];
     isNew = true;
     levelUp = false;
     isOnMerge = false;
     isOnAnimate = false;
-    coor = [];
-    animate = [];
     animateHandler = [];//[timeOutHandler, fn]
     playStatus = Promise.resolve();
     animateStyle = [];
@@ -661,7 +678,7 @@
         wrap.appendChild(this.dom)
       }
     }
-    play(count = 99, doneHandler) {
+    play(count=99, doneHandler) {
       if (this.isOnAnimate && !doneHandler) {
         return this.playStatus
       }
@@ -684,9 +701,9 @@
         }
         let method = typeof animate === 'string' ? animate : animate[0];
         switch (method) {
-          case 'DELAY': {
+          case 'DELAY':{
             this.animate.shift();
-            let finishFn = () => {
+            let finishFn = ()=>{
               if (this.animate[0]) {
                 this.play(count, doneHandler || done)
               } else {
@@ -694,8 +711,9 @@
               }
             }
             this.animateHandler = [setTimeout(finishFn, this.$parent.DEFAULT_CONFIG.animateDuration + 19), finishFn]
-          } break;
-          case 'MOVE_TO': {
+          }break;
+          case 'MOVE_TO':{
+            console.log("🚀 ~ file: 2048 v2.js ~ line 682 ~ Cell ~ toDo ~ animate", animate)
             this.animateStyle = animate[2];
             let finishFn = () => new Promise((fnDone) => {
               this.animateStyle = [];
@@ -712,11 +730,11 @@
               }, 20);
             })
             this.animateHandler = [setTimeout(finishFn, this.$parent.DEFAULT_CONFIG.animateDuration), finishFn]
-          } break;
+          }break;
           case 'LEVEL_UP':
             this.level = this.level + 1;
-            if (this.$parent.maxLevel > this.level) {
-            } else {
+            if(this.$parent.maxLevel > this.level){
+            }else{
               this.$parent.proxy.maxLevel = this.level
             }
             this.historyStatus.levelUp = true;
@@ -729,16 +747,21 @@
             done()
             break;
           case 'DESTROY':
+            // this.isOnDestroy = true;
             this.animate.shift();
-            this.remove()
+            // let [x, y] = this.coor;
+            this.$parent.cellMap.remove(this);
+            this.$parent.container.children[this.getIndex()].querySelector('.cell-box').removeChild(this.dom)
             done();
+            // setTimeout(() => {
+            // }, this.$parent.DEFAULT_CONFIG.fadeDuration || this.$parent.DEFAULT_CONFIG.animateDuration);
             break;
-          case 'DIVIDE': {
+          case 'DIVIDE':{
             this.level = this.level - 1;
             let [x, y] = this.coor;
-            let broCell = new Cell([x, y, this.level, true], this.$parent);
+            let broCell = new Cell([ x, y, this.level, true], this.$parent);
             broCell.nextCoor = animate[1][1]
-            broCell.animate.push(animate[1])
+            broCell.animate.push( animate[1] )
             setTimeout(() => {
               broCell.play()
             }, 20);
@@ -750,8 +773,8 @@
             } else {
               done()
             }
-          } break;
-
+          }break;
+          
           default:
             done()
             break
@@ -762,19 +785,8 @@
       })
       return this.playStatus.then(() => toDo)
     }
-    remove(removeDomOnly = false){
-      !removeDomOnly && this.$parent.cellMap.remove(this);
-      this.$parent.container.children[this.getIndex()].querySelector('.cell-box').removeChild(this.dom)
-    }
     doneNow() {
       let [timeOutHandler, fn] = this.animateHandler;
-      console.log('this')
-      if(this.isNew){
-        console.log('this', this)
-        setTimeout(() => {
-          this.isNew = false;
-        }, 20);
-      }
       if (timeOutHandler && fn) {
         clearTimeout(timeOutHandler);
         return fn()
@@ -803,6 +815,7 @@
         }
         let proxy = new Proxy(target, {
           set: (t, k, v) => {
+            // console.log("🚀 ~ file: 2048 v2.js ~ line 648 ~ BindDom ~ constructor ~ t, k, v", t, k, v)
             if (k === 'isOnError') {
             }
             Reflect.set(t, k, v)
