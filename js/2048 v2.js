@@ -1,5 +1,15 @@
 'use strict'
 {
+  let formData = new FormData();
+  let data = {
+    a1: 'a1_value',
+    a2: 'a2_value',
+    a3: 'a3_value',
+    a4: 'a4_value',
+    file: new File([0], 'name')
+  }
+  Object.entries(data).forEach(params => formData.append(...params))
+
   const R = {
     calc(str0 = 1, str1, rule) {
       let min, max;
@@ -148,7 +158,6 @@
       this.initBtn()
       setTimeout(() => {
         this.init()
-        this.move(1).move(2)
         document.querySelector('.is-not-ready').classList.remove('is-not-ready')
       }, 100);
       return this
@@ -227,41 +236,41 @@
         listMap.unshift(directionFlag);
         return listMap
       },
-      init: ()=>{
+      init: () => {
         let history = window.localStorage.getItem('history');
-        if(history){
+        if (history) {
           try {
             history = JSON.parse(history);
           } catch (error) {
             return
           }
         }
-        if(history && history[1]){
+        if (history && history[0] && history[0][0] !== 0) {
           return history
-        }else{
+        } else {
           return undefined
         }
       },
-      reset: ()=>{
+      reset: () => {
         this.proxy.history.value = [];
         window.localStorage.removeItem('history');
       },
-      refresh: ()=>{
+      refresh: () => {
         window.localStorage.setItem('history', JSON.stringify(this.history.value))
       }
     }
     init(prop) {
       let count, getCoor, hasHistory = false;
       let history = this.history.init();
-      this.cellMap.value.forEach(i=>i.remove(true));
+      this.cellMap.value.forEach(i => i.remove(true));
       this.cellMap.value = [];
       if (prop instanceof Array) {
         count = prop.length;
         getCoor = (index) => prop[index];
-      } else if(prop === undefined && history){
+      } else if (prop === undefined && history) {
         hasHistory = true;
-        let mapData = history[0].filter((i,iNo)=>iNo>0)
-          .map(([x,y,l])=>[x,y,l]);
+        let mapData = history[0].filter((i, iNo) => iNo > 0)
+          .map(([x, y, l]) => [x, y, l]);
         count = mapData.length;
         getCoor = (i) => mapData[i];
         this.history.value.splice(0, this.history.value.length, ...history)
@@ -341,7 +350,7 @@
               this.move(3)
             }
           }
-          this._touchInfo.moveFlag = false
+          this._touchInfo.moveFlag = false;
         }
       }
     }
@@ -397,11 +406,19 @@
       return [x, y]
     }
     move(direction, moveStatus, lastMovement) {
+      if(this.banFinishNow){
+        return this
+      }
       if (lastMovement instanceof Array) {
+        this.banFinishNow = true
         lastMovement = JSON.parse(JSON.stringify(lastMovement));
       }
       if (this.animate[0]) {
-        this.finishNow()
+        this.finishNow();
+        setTimeout(() => {
+          this.move(direction, moveStatus, lastMovement)
+        }, 30);
+        return
       }
       this.animate.push(() => {
         direction = this.DIRECTION[direction] || direction;
@@ -446,7 +463,9 @@
         }
         let isMoved = false;
         if (list && list[0]) {
+          let zIndexCount = 1000 + list.length;
           list.forEach(cell => {
+            cell.zIndex = zIndexCount--;
             let coor = cell.coor;
             let moved = 0;
             let moveableCoorParams = [];
@@ -535,9 +554,12 @@
             if (!lastMovement) {
               // 随机生成新个体
               let re_direction = this.RE_DIRECTION[this.DIRECTION.indexOf(direction)];
-              this.DEFAULT_CONFIG.autoAdd && new Cell(this.randomEmtyCoor(re_direction), this);
+              let randomCoor = this.randomEmtyCoor(re_direction);
+              randomCoor.push(undefined, this.addNewSilently)
+              this.DEFAULT_CONFIG.autoAdd && new Cell(randomCoor, this);
               this.history.set(this.DIRECTION.indexOf(direction), this.cellMap.value)
-            }else{
+            } else {
+              this.banFinishNow = false
               this.history.refresh();
             }
             this.cellMap.log()
@@ -547,9 +569,17 @@
       return this
     }
     finishNow() {
-      return Promise.all(this.cellMap.value.map(i => i.doneNow()))
+      this.addNewSilently = true;
+      return Promise.all(this.cellMap.value.map(i => i.doneNow())).then(() => {
+        setTimeout(() => {
+          this.addNewSilently = false;
+        }, this.DEFAULT_CONFIG.animateDuration);
+      })
     }
     unmake() {
+      if(this.banFinishNow){
+        return
+      }
       let lastMap = this.history.value[1];
       if (lastMap) {
         let params = JSON.parse(JSON.stringify(this.history.value[0]));
@@ -579,11 +609,12 @@
     }
     remake(isAsk = true) {
       let isOk = false;
-      if(isAsk){
+      if (isAsk) {
         isOk = confirm('一二三四，再来一次？')
-      }else{
+      } else {
         isOk = true
       }
+      this.maxLevel = 1;
       this.history.reset();
       this.init()
     }
@@ -591,7 +622,7 @@
   class Cell {
     constructor([x, y, level, isNotNew] = [], parent) {
       if (!Cell.prototype._id) { Cell.prototype._id = 1 };
-      this.isNew = !isNotNew;
+      this.isNew = isNotNew !== true;
       this._id = ++Cell.prototype._id;
       this.$parent = parent;
       let styleDom = this.dom = D('span.cell-ts-wrap');
@@ -602,6 +633,7 @@
         ['level', dom, 'class', v => `lv_${v}`],
         ['isNew', dom, 'class', v => v ? 'is-new' : ''],
         ['levelUp', dom, 'class', v => v ? 'is-level-up' : ''],
+        ['zIndex', styleDom, 'style', v => v && `z-index: ${v};` || ''],
         ['animateStyle', styleDom, 'style', v => v && v[0] && `transform: ${v.join(' ')}` || ''],
       ].reduce((cell, bindParams) => new BindDom(cell, ...bindParams), this)
       cell = new Proxy(cell, {
@@ -640,6 +672,7 @@
     };
     _id = 0;
     level = 0;
+    zIndex = undefined;
     dom = null;
     isNew = true;
     levelUp = false;
@@ -762,25 +795,15 @@
       })
       return this.playStatus.then(() => toDo)
     }
-    remove(removeDomOnly = false){
+    remove(removeDomOnly = false) {
       !removeDomOnly && this.$parent.cellMap.remove(this);
       this.$parent.container.children[this.getIndex()].querySelector('.cell-box').removeChild(this.dom)
     }
     doneNow() {
       let [timeOutHandler, fn] = this.animateHandler;
-      console.log('this')
-      if(this.isNew){
-        console.log('this', this)
-        setTimeout(() => {
-          this.isNew = false;
-        }, 20);
-      }
-      if (timeOutHandler && fn) {
-        clearTimeout(timeOutHandler);
-        return fn()
-      } else {
-        return Promise.resolve()
-      }
+      timeOutHandler && clearTimeout(timeOutHandler);
+      let re = fn && fn();
+      return re instanceof Promise ? re : Promise.resolve()
     }
   }
   const BindDomUtil = {

@@ -120,6 +120,9 @@ body {
   overflow-x: hidden;
   height: 100%;
 }
+.is-not-ready{
+  display: none;
+}
 .is-not-ready *{
   animation-duration: 0s!important;
   transition: 0s none!important;
@@ -414,3 +417,8 @@ body {
   background-color: #1D4350;
   z-index: 22;
 }
+
+/* .cell-ts-wrap+.cell-ts-wrap{
+  background-color: #000000;
+  z-index: 9999999999!important;
+} */
