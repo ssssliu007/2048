@@ -1,15 +1,44 @@
 'use strict'
 {
-  let formData = new FormData();
-  let data = {
-    a1: 'a1_value',
-    a2: 'a2_value',
-    a3: 'a3_value',
-    a4: 'a4_value',
-    file: new File([0], 'name')
+  const BindDomUtil = {
+    count: 1,
+    publisher: {},
+    subscriber: {},
+    attrSetFillter(attrName, valueList) {
+      switch (attrName.toUpperCase()) {
+        case 'STYLE':
+          return valueList.map(s => {
+            if (!s) {
+              return ''
+            }
+            if (typeof s === 'object') {
+              return Object.entries(s).map(([k, v]) => {
+                `${k.replace(/[A-Z]/g, kk => '-' + kk.toLowerCase()).replace(/^-/, '')}: ${v}`
+              }).join(';') + ';'
+            } else {
+              return s.replace(/;$/, '') + ';'
+            }
+          }).join('');
+        case 'CLASS':
+          return valueList.map(s => {
+            if (s instanceof Array) {
+              return s.join(' ')
+            } else if (typeof s === 'object') {
+              return Object.entries(s).filter(([k, v]) => v).map(([k]) => k).join(';')
+            } else {
+              return s.replace(/;$/, '')
+            }
+          }).join(' ');
+        default:
+          return valueList[valueList.length - 1]
+      }
+    },
+    off(target) {
+      let id = typeof target === 'string' ? target : target && target._bId;
+      return delete this.publisher[id]
+    }
+    // SubscribeEvent: {}
   }
-  Object.entries(data).forEach(params => formData.append(...params))
-
   const R = {
     calc(str0 = 1, str1, rule) {
       let min, max;
@@ -129,6 +158,78 @@
       }).join('%c\n') + '%c',
       ...styles
     )
+  }
+  class BindDom {
+    constructor(target, key, dome, attrName, valueFn) {
+      if (!(target && key && dome && attrName)) { return }
+      this.el = dome;
+      let bindId;
+      let publicItem = Object.entries(BindDomUtil.publisher).find(([id, item])=>item.target === target || item.proxy === target);
+      if (!publicItem) {
+        bindId = 'id_' + BindDomUtil.count++;
+      }else{
+        bindId = publicItem[0]
+      }
+      if (BindDomUtil.subscriber[bindId] && BindDomUtil.subscriber[bindId][attrName]) {
+        BindDomUtil.subscriber[bindId][attrName].push([target, key, valueFn]) 
+      } else {
+        let orgValue = dome.getAttribute(attrName);
+        if(!BindDomUtil.subscriber[bindId]){
+          BindDomUtil.subscriber[bindId] = {}
+        }
+        Object.assign(BindDomUtil.subscriber[bindId], {
+          [attrName]: [
+            [[orgValue], 0],
+            [target, key, valueFn]
+          ]
+        }) 
+      }
+      let publisher = BindDomUtil.publisher[bindId];
+      let proxy;
+      let publicEvent = () => {
+        let valueList = BindDomUtil.subscriber[bindId][attrName].map(([dt, dk, vFn]) => vFn ? vFn(dt[dk]) : dt[dk])
+        let attrValue = BindDomUtil.attrSetFillter(attrName, valueList)
+        if(attrName === 'style'){
+          console.log("🚀 ~ file: 2048 v2.js ~ line 193 ~ BindDom ~ publicEvent ~ valueList", valueList)
+        }
+        console.log('attrValue', attrValue)
+        if (dome[attrName] !== undefined) {
+          dome[attrName] = attrValue
+        } else {
+          dome.setAttribute(attrName, attrValue)
+        }
+      }
+      if (publisher) {
+        if (publisher.keys[key]) {
+          publisher.keys[key].push(publicEvent)
+        }else{
+          publisher.keys[key] = [publicEvent]
+        }
+        proxy = publisher.proxy;
+      } else {
+        publisher = {
+          target, proxy,
+          keys: {
+            [key]: [publicEvent]
+          }
+        }
+        proxy = new Proxy(target, {
+          set: (t, k, v) => {
+            Reflect.set(t, k, v)
+            let eventList = BindDomUtil.publisher[bindId].keys[k];
+            
+            eventList && eventList.forEach(fn => fn && fn())
+
+            console.log('eventList', eventList)
+            return true
+          }
+        })
+        publisher.proxy = proxy;
+        BindDomUtil.publisher[bindId] = publisher
+      }
+      return proxy
+    }
+    el = null;
   }
   class Game2048 {
     DEFAULT_CONFIG = {
@@ -406,7 +507,7 @@
       return [x, y]
     }
     move(direction, moveStatus, lastMovement) {
-      if(this.banFinishNow){
+      if (this.banFinishNow) {
         return this
       }
       if (lastMovement instanceof Array) {
@@ -577,7 +678,7 @@
       })
     }
     unmake() {
-      if(this.banFinishNow){
+      if (this.banFinishNow) {
         return
       }
       let lastMap = this.history.value[1];
@@ -633,9 +734,9 @@
         ['level', dom, 'class', v => `lv_${v}`],
         ['isNew', dom, 'class', v => v ? 'is-new' : ''],
         ['levelUp', dom, 'class', v => v ? 'is-level-up' : ''],
-        ['zIndex', styleDom, 'style', v => v && `z-index: ${v};` || ''],
         ['animateStyle', styleDom, 'style', v => v && v[0] && `transform: ${v.join(' ')}` || ''],
-      ].reduce((cell, bindParams) => new BindDom(cell, ...bindParams), this)
+        ['zIndex', styleDom, 'style', v => v && `z-index: ${v};` || ''],
+      ].reduce((cell, bindParams) => new BindDom(this, ...bindParams), this)
       cell = new Proxy(cell, {
         set(target, key, value) {
           Reflect.set(target, key, value)
@@ -796,8 +897,11 @@
       return this.playStatus.then(() => toDo)
     }
     remove(removeDomOnly = false) {
-      !removeDomOnly && this.$parent.cellMap.remove(this);
-      this.$parent.container.children[this.getIndex()].querySelector('.cell-box').removeChild(this.dom)
+      if(!removeDomOnly){
+        this.$parent.cellMap.remove(this);
+        // BindDomUtil.off(this)
+      }
+      this.$parent.container.children[this.getIndex()].querySelector('.cell-box').removeChild(this.dom);
     }
     doneNow() {
       let [timeOutHandler, fn] = this.animateHandler;
@@ -806,75 +910,9 @@
       return re instanceof Promise ? re : Promise.resolve()
     }
   }
-  const BindDomUtil = {
-    count: 1,
-    map: {}
-  }
-  class BindDom {
-    constructor(target, key, dome, attrName, valueFn) {
-      if (target && key && dome && attrName) {
-        this.el = dome;
-        if (!dome._bId) {
-          dome._bId = BindDomUtil.count++;
-        }
-        let bindKey = attrName + '_' + dome._bId;
-        if (BindDomUtil.map[bindKey]) {
-          BindDomUtil.map[bindKey].push([target, key, valueFn])
-        } else {
-          let orgValue = dome.getAttribute(attrName);
-          BindDomUtil.map[bindKey] = [[[orgValue], 0], [target, key, valueFn]]
-        }
-        let proxy = new Proxy(target, {
-          set: (t, k, v) => {
-            if (k === 'isOnError') {
-            }
-            Reflect.set(t, k, v)
-            if (k === key) {
-              let valueList = BindDomUtil.map[bindKey].map(([dt, dk, vFn]) => vFn ? vFn(dt[dk]) : dt[dk])
-              let attrValue = this.attrSetFillter(attrName, valueList)
-              if (this.el[attrName] !== undefined) {
-                this.el[attrName] = attrValue
-              } else {
-                this.el.setAttribute(attrName, attrValue)
-              }
-            }
-            return true
-          }
-        })
-        return proxy
-      }
-    }
-    el = null;
-    attrSetFillter(attrName, valueList) {
-      switch (attrName.toUpperCase()) {
-        case 'STYLE':
-          return valueList.map(s => {
-            if (!s) {
-              return ''
-            }
-            if (typeof s === 'object') {
-              return Object.entries(s).map(([k, v]) => {
-                `${k.replace(/[A-Z]/g, kk => '-' + kk.toLowerCase()).replace(/^-/, '')}: ${v}`
-              }).join(';') + ';'
-            } else {
-              return s.replace(/;$/, '') + ';'
-            }
-          }).join('');
-        case 'CLASS':
-          return valueList.map(s => {
-            if (s instanceof Array) {
-              return s.join(' ')
-            } else if (typeof s === 'object') {
-              return Object.entries(s).filter(([k, v]) => v).map(([k]) => k).join(';')
-            } else {
-              return s.replace(/;$/, '')
-            }
-          }).join(' ');
-        default:
-          return valueList[valueList.length - 1]
-      }
-    }
-  }
 
-  new Game2048("#box")
+  let game = new Game2048("#box")
+
+  window['BindDomUtil'] = BindDomUtil;
+  window['game'] = game;
 }
