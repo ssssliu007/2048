@@ -170,31 +170,6 @@
       }else{
         bindId = publicItem[0]
       }
-      if(dome.id === 'remake'){
-        console.log("🚀 ~ file: 2048 v2.js ~ line 180 ~ BindDom ~ constructor ~ orgValue", dome.getAttribute(attrName))
-      }
-      // let subscriberDomeTarget = BindDomUtil.subscriber[bindId].get(dome);
-      // if (BindDomUtil.subscriber[bindId] && subscriberDomeTarget) {
-      //   BindDomUtil.subscriber[bindId][attrName].push([target, key, valueFn]) 
-      // } else {
-      //   let orgValue = dome.getAttribute(attrName);
-      //   if(!BindDomUtil.subscriber[bindId]){
-      //     BindDomUtil.subscriber[bindId] = new Map();
-      //   }
-      //   if(){
-
-      //   }
-      //   BindDomUtil.subscriber[bindId].set(dome, {
-      //     [attrName]: [
-      //       [[orgValue], 0],
-      //       [target, key, valueFn]
-      //     ]
-      //   })
-      // }
-
-
-
-
       if(!BindDomUtil.subscriber[bindId]){
         let domeAttrMap = BindDomUtil.subscriber[bindId] = new Map();
         domeAttrMap.set(dome, {
@@ -227,23 +202,9 @@
       let publisher = BindDomUtil.publisher[bindId];
       let proxy;
       let publicEvent = () => {
-        let valueList = [];
-        console.log(BindDomUtil.subscriber[bindId]);
-        // BindDomUtil.subscriber[bindId].forEach(l => {
-        //   let lValue = l[attrName];
-        //   lValue && valueList.push(...lValue)
-        // })
-        valueList = BindDomUtil.subscriber[bindId].get(dome)[attrName];
-        console.log("🚀 ~ file: 2048 v2.js ~ line 237 ~ BindDom ~ publicEvent ~ valueList", valueList)
-        valueList = valueList.map(([dt, dk, vFn]) =>{
-          console.log(dt, dk, vFn)
-          return vFn ? vFn(dt[dk]) : dt[dk]
-        })
+        let valueList = BindDomUtil.subscriber[bindId].get(dome)[attrName]
+          .map(([dt, dk, vFn]) =>vFn ? vFn(dt[dk]) : dt[dk])
         let attrValue = BindDomUtil.attrSetFillter(attrName, valueList)
-        if(attrName === 'class'){
-          console.log("🚀 ~ file: 2048 v2.js ~ line 193 ~ BindDom ~ publicEvent ~ valueList", valueList)
-        }
-        console.log('attrValue', attrValue)
         if (dome[attrName] !== undefined) {
           dome[attrName] = attrValue
         } else {
@@ -268,10 +229,7 @@
           set: (t, k, v) => {
             Reflect.set(t, k, v)
             let eventList = BindDomUtil.publisher[bindId].keys[k];
-            
             eventList && eventList.forEach(fn => fn && fn())
-
-            console.log('eventList', eventList)
             return true
           }
         })
