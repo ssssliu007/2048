@@ -308,17 +308,17 @@
         this.toX = (e.touches[0].clientX - this.canvas.width / 2) * -0.8;
         this.toY = (e.touches[0].clientY - this.canvas.height / 2) * 0.8;
       }.bind(this));
-      window.addEventListener('mousedown', function (e) {
-        for (var i = 0; i < 100; i++) {
-          this.add();
-        }
-      }.bind(this));
-      window.addEventListener('touchstart', function (e) {
-        e.preventDefault();
-        for (var i = 0; i < 100; i++) {
-          this.add();
-        }
-      }.bind(this));
+      // window.addEventListener('mousedown', function (e) {
+      //   for (var i = 0; i < 100; i++) {
+      //     this.add();
+      //   }
+      // }.bind(this));
+      // window.addEventListener('touchstart', function (e) {
+      //   e.preventDefault();
+      //   for (var i = 0; i < 100; i++) {
+      //     this.add();
+      //   }
+      // }.bind(this));
     };
     var app = new Build('#cvs');
     app.run();
