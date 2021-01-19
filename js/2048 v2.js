@@ -23,10 +23,10 @@
           return valueList.map(s => {
             if (s instanceof Array) {
               return s.join(' ')
-            } else if (typeof s === 'object') {
+            } else if (typeof s === 'object' && s) {
               return Object.entries(s).filter(([k, v]) => v).map(([k]) => k).join(';')
             } else {
-              return s.replace(/;$/, '')
+              return s && s.replace && s.replace(/;$/, '') || ''
             }
           }).join(' ');
         default:
@@ -170,26 +170,77 @@
       }else{
         bindId = publicItem[0]
       }
-      if (BindDomUtil.subscriber[bindId] && BindDomUtil.subscriber[bindId][attrName]) {
-        BindDomUtil.subscriber[bindId][attrName].push([target, key, valueFn]) 
-      } else {
-        let orgValue = dome.getAttribute(attrName);
-        if(!BindDomUtil.subscriber[bindId]){
-          BindDomUtil.subscriber[bindId] = {}
-        }
-        Object.assign(BindDomUtil.subscriber[bindId], {
+      if(dome.id === 'remake'){
+        console.log("🚀 ~ file: 2048 v2.js ~ line 180 ~ BindDom ~ constructor ~ orgValue", dome.getAttribute(attrName))
+      }
+      // let subscriberDomeTarget = BindDomUtil.subscriber[bindId].get(dome);
+      // if (BindDomUtil.subscriber[bindId] && subscriberDomeTarget) {
+      //   BindDomUtil.subscriber[bindId][attrName].push([target, key, valueFn]) 
+      // } else {
+      //   let orgValue = dome.getAttribute(attrName);
+      //   if(!BindDomUtil.subscriber[bindId]){
+      //     BindDomUtil.subscriber[bindId] = new Map();
+      //   }
+      //   if(){
+
+      //   }
+      //   BindDomUtil.subscriber[bindId].set(dome, {
+      //     [attrName]: [
+      //       [[orgValue], 0],
+      //       [target, key, valueFn]
+      //     ]
+      //   })
+      // }
+
+
+
+
+      if(!BindDomUtil.subscriber[bindId]){
+        let domeAttrMap = BindDomUtil.subscriber[bindId] = new Map();
+        domeAttrMap.set(dome, {
           [attrName]: [
-            [[orgValue], 0],
+            [[dome.getAttribute(attrName)], 0],
             [target, key, valueFn]
           ]
-        }) 
+        })
+      }else if(BindDomUtil.subscriber[bindId]){
+        let domeAttrValue = BindDomUtil.subscriber[bindId].get(dome);
+        if(!domeAttrValue){
+          domeAttrValue = {
+            [attrName]: [
+              [[dome.getAttribute(attrName)], 0],
+              [target, key, valueFn]
+            ]
+          }
+          BindDomUtil.subscriber[bindId].set(dome, domeAttrValue)
+        }else{
+          if(domeAttrValue[attrName]){
+            domeAttrValue[attrName].push([target, key, valueFn])
+          }else{
+            domeAttrValue[attrName] = [
+              [[dome.getAttribute(attrName)], 0],
+              [target, key, valueFn]
+            ]
+          }
+        }
       }
       let publisher = BindDomUtil.publisher[bindId];
       let proxy;
       let publicEvent = () => {
-        let valueList = BindDomUtil.subscriber[bindId][attrName].map(([dt, dk, vFn]) => vFn ? vFn(dt[dk]) : dt[dk])
+        let valueList = [];
+        console.log(BindDomUtil.subscriber[bindId]);
+        // BindDomUtil.subscriber[bindId].forEach(l => {
+        //   let lValue = l[attrName];
+        //   lValue && valueList.push(...lValue)
+        // })
+        valueList = BindDomUtil.subscriber[bindId].get(dome)[attrName];
+        console.log("🚀 ~ file: 2048 v2.js ~ line 237 ~ BindDom ~ publicEvent ~ valueList", valueList)
+        valueList = valueList.map(([dt, dk, vFn]) =>{
+          console.log(dt, dk, vFn)
+          return vFn ? vFn(dt[dk]) : dt[dk]
+        })
         let attrValue = BindDomUtil.attrSetFillter(attrName, valueList)
-        if(attrName === 'style'){
+        if(attrName === 'class'){
           console.log("🚀 ~ file: 2048 v2.js ~ line 193 ~ BindDom ~ publicEvent ~ valueList", valueList)
         }
         console.log('attrValue', attrValue)
@@ -208,7 +259,7 @@
         proxy = publisher.proxy;
       } else {
         publisher = {
-          target, proxy,
+          target, proxy, dome,
           keys: {
             [key]: [publicEvent]
           }
@@ -353,7 +404,7 @@
         }
       },
       reset: () => {
-        this.proxy.history.value = [];
+        this.proxy.history.value.length = 0;
         window.localStorage.removeItem('history');
       },
       refresh: () => {
@@ -911,7 +962,7 @@
     }
   }
 
-  let game = new Game2048("#box")
+  const game = new Game2048("#box")
 
   window['BindDomUtil'] = BindDomUtil;
   window['game'] = game;
